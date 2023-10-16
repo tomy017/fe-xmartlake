@@ -3,6 +3,7 @@ import MonacoEditor from '@monaco-editor/react';
 import styles from './text-editor.module.scss';
 import Dropdown, { Option } from 'react-dropdown';
 import 'react-dropdown/style.css';
+// @ts-ignore Could not find types for this package
 import { constrainedEditor } from 'constrained-editor-plugin';
 import js from '../../../assets/images/js.png';
 import python from '../../../assets/images/python.png';

@@ -1,4 +1,5 @@
 type TurnData = {
+  _id: string,
   turn_identifier: string,
   timestamp: string,
   session_identifier: string,
@@ -24,7 +25,10 @@ type TurnData = {
   dead: boolean,
   collision: boolean,
   collision_to: string,
+  hit: boolean,
+  hit_to: string | null,
   target_reached: boolean,
+  target_abs_coordinates: string,
   wrong_response: boolean,
   notes: string,
 };

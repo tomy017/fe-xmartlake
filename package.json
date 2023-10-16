@@ -18,6 +18,8 @@
   "homepage": "https://github.com/xmartlabs/xmartlabs-react-template#readme",
   "private": true,
   "dependencies": {
+    "@dicebear/collection": "^7.0.1",
+    "@dicebear/core": "^7.0.1",
     "@monaco-editor/react": "^4.5.0",
     "@storybook/addon-actions": "^6.5.16",
     "@storybook/addon-essentials": "^6.5.16",

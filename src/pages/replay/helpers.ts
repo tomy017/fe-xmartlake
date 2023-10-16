@@ -104,14 +104,108 @@ export const colors: { name: string; hex: string }[] = [
   { name: 'Dark Slate Gray', hex: '#2F4F4F' }
 ];
 
-export const getStartingPositions = (gameData: TurnData[]) => {
-  const startingPositions = gameData
-    .filter((turn) => turn.turn_number === 1)
-    .map((turn) => {
+const buildMovementAnimationKeyframes = (
+  botIdentifier: string, name: string, x: number | string, y: number | string, 
+  newX: number | string, newY: number | string
+  ) => {
+  const animationName = `${name}_${botIdentifier}`;
+  const animationKeyframes = `
+    @keyframes ${animationName} {
+      from {
+          cx: ${x};
+          cy: ${y};
+      }
+      to {
+          cx: ${newX};
+          cy: ${newY};
+      }
+    }
+  `;
+  return {animationName, animationKeyframes};
+}
+
+const buildShakeAnimationKeyframes = (botIdentifier: string, name: string) => {
+  const animationName = `${name}_${botIdentifier}`;
+  const animationKeyframes = `
+    @keyframes ${animationName} {
+      0% {
+        transform: translate(0, 0);
+      }
+      10% {
+        transform: translate(-5px, 0);
+      }
+      20% {
+        transform: translate(5px, 0);
+      }
+      30% {
+        transform: translate(-5px, 0);
+      }
+      40% {
+        transform: translate(5px, 0);
+      }
+      50% {
+        transform: translate(-5px, 0);
+      }
+      60% {
+        transform: translate(5px, 0);
+      }
+      70% {
+        transform: translate(-5px, 0);
+      }
+      80% {
+        transform: translate(5px, 0);
+      }
+      90% {
+        transform: translate(-5px, 0);
+      }
+      100% {
+        transform: translate(0, 0);
+      }
+    }
+  `;
+  return { animationName, animationKeyframes };
+}
+
+const buildPulseAnimationKeyframes = (botIdentifier: string, name: string, from: string, to: string) => {
+  const animationName = `${name}_${botIdentifier}`;
+  const animationKeyframes = `
+    @keyframes ${animationName} {
+      from {
+        r: ${from};
+      }
+      to {
+        r: ${to};
+      }
+    }
+  `;
+  return { animationName, animationKeyframes };
+}
+
+const appendStyleElement = (
+  grid: SVGSVGElement, element: SVGCircleElement, 
+  animation: { animationName: string, animationKeyframes: string }, 
+  withTimeOut: boolean, svgNS: string, animationType: string = "linear",
+  animationDuration: string = "1s", animationFillMode: string = "forwards"
+  ) => {
+  const styleElement = document.createElementNS(svgNS, "style");
+  styleElement.innerHTML = animation.animationKeyframes;
+  grid.appendChild(styleElement);
+  if (withTimeOut) {
+    setTimeout(() => {
+      element.style.animation = `${animation.animationName} ${animationDuration} ${animationType} ${animationFillMode}`;
+    }, 500)
+  } else {
+    element.style.animation = `${animation.animationName} ${animationDuration} ${animationType} ${animationFillMode}`;
+  }
+}
+
+export const getStartingPositions = (palyers: PlayerData[]) => {
+  const startingPositions = palyers
+    .map((player) => {
       return {
-          botIdentifier: turn.bot_identifier,
-          x: turn.origin_position_x,
-          y: turn.origin_position_y,
+          botIdentifier: player.bot_identifier,
+          x: player.position_x,
+          y: player.position_y,
       };
     }
   );
@@ -119,25 +213,22 @@ export const getStartingPositions = (gameData: TurnData[]) => {
 }
 
 export const createGrid = (grid: SVGSVGElement, rows: number, cols: number, squareSize: number) => {
-    // Create a new SVG element for the grid
     const svgNS = "http://www.w3.org/2000/svg";
     const gridGroup = document.createElementNS(svgNS, "g");
 
-    // Loop to create rows and columns of squares
     for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            const rect = document.createElementNS(svgNS, "rect");
-            rect.setAttribute("x", (j * squareSize).toString());
-            rect.setAttribute("y", (i * squareSize).toString());
-            rect.setAttribute("width", squareSize.toString());
-            rect.setAttribute("height", squareSize.toString());
-            rect.setAttribute("fill", "none");
-            rect.setAttribute("stroke", "black");
-            gridGroup.appendChild(rect);
-        }
+      for (let j = 0; j < cols; j++) {
+        const rect = document.createElementNS(svgNS, "rect");
+        rect.setAttribute("x", (j * squareSize).toString());
+        rect.setAttribute("y", (i * squareSize).toString());
+        rect.setAttribute("width", squareSize.toString());
+        rect.setAttribute("height", squareSize.toString());
+        rect.setAttribute("fill", "none");
+        rect.setAttribute("stroke", "black");
+        gridGroup.appendChild(rect);
+      }
     }
 
-    // Set the viewbox and add the grid group to the SVG
     const viewBoxWidth = cols * squareSize;
     const viewBoxHeight = rows * squareSize;
     grid.setAttribute("viewBox", `0 0 ${viewBoxWidth} ${viewBoxHeight}`);
@@ -146,10 +237,9 @@ export const createGrid = (grid: SVGSVGElement, rows: number, cols: number, squa
 
 export const drawStartingPositions = (grid: SVGSVGElement, startingPositions: any[], squareSize: number, botsData: any[]) => {
   const svgNS = "http://www.w3.org/2000/svg";
-  console.log(startingPositions);
   startingPositions.forEach((position) => {
     const circle = document.createElementNS(svgNS, "circle");
-    // Calculate the center position of the square
+
     const centerX = position.x * squareSize + squareSize / 2;
     const centerY = position.y * squareSize + squareSize / 2;
 
@@ -164,186 +254,209 @@ export const drawStartingPositions = (grid: SVGSVGElement, startingPositions: an
   });
 };
 
-const animate = (entity: any, newX: number, newY: number, squareSize: number, startTime: number, animationDuration: number) => {
-  const elapsedTime = performance.now() - startTime;
-  if (elapsedTime < animationDuration) {
-    const progress = elapsedTime / animationDuration;
-    const nextX = newX * squareSize + squareSize / 2;
-    const nextY = newY * squareSize + squareSize / 2;
-    entity.setAttribute('cx', nextX);
-    entity.setAttribute('cy', nextY);
-    requestAnimationFrame(() => animate(entity, newX, newY, squareSize, startTime, animationDuration));
-  } else {
-    entity.setAttribute('cx', (newX + 0.5) * squareSize);
-    entity.setAttribute('cy', (newY + 0.5) * squareSize);
-  }
-}
-
 export const moveBot = (
   grid: SVGSVGElement, botIdentifier: 
   string,x: number, y: number, newX: number, newY: 
-  number, squareSize: number, color: string
+  number, squareSize: number, color: string, collision: boolean,
+  collision_to: string, origin_shield_enabled: boolean, 
+  origin_victories: number, final_victories: number, dead: boolean
   ) => {
   const svgNS = "http://www.w3.org/2000/svg";
 
-  // Find the existing bot circle
   const existingBotCircle = document.querySelector(`#${botIdentifier}`) as SVGCircleElement;
   if (existingBotCircle) {
-      existingBotCircle.remove(); // Remove the existing bot circle
+    existingBotCircle.remove();
   }
 
-  // Calculate the center position of the new square
   const newCenterX = newX * squareSize + squareSize / 2;
   const newCenterY = newY * squareSize + squareSize / 2;
 
-  // Create a new circle for the bot
   const newBotCircle = document.createElementNS(svgNS, "circle");
   newBotCircle.setAttribute("id", botIdentifier);
   newBotCircle.setAttribute("cx", newCenterX.toString());
   newBotCircle.setAttribute("cy", newCenterY.toString());
-  newBotCircle.setAttribute("r", "10"); // Adjust the radius as needed
-  newBotCircle.setAttribute("fill", color); // Circle color
+  newBotCircle.setAttribute("r", "10");
+  newBotCircle.setAttribute("fill", origin_shield_enabled ? "none" : color);
   grid.appendChild(newBotCircle);
 
-  // Create a keyframe animation
-  const animationName = `moveBotAnimation_${botIdentifier}`;
-  const animationKeyframes = `
-      @keyframes ${animationName} {
-          from {
-              cx: ${x * squareSize + squareSize / 2};
-              cy: ${y * squareSize + squareSize / 2};
-          }
-          to {
-              cx: ${newCenterX};
-              cy: ${newCenterY};
-          }
-      }
-  `;
+  if (collision) {
+    const collidedBotCircle = document.querySelector(`#${collision_to}`) as SVGCircleElement;
+    const collidedBotCircleCenterX = collidedBotCircle.getAttribute("cx");
+    const collidedBotCircleCenterY = collidedBotCircle.getAttribute("cy");
 
-  // Create a style element for the animation
-  const styleElement = document.createElementNS(svgNS, "style");
-  styleElement.innerHTML = animationKeyframes;
-  grid.appendChild(styleElement);
+    const collisionAnimation = buildMovementAnimationKeyframes(botIdentifier, "collisionAnimation", x * squareSize + squareSize / 2, y * squareSize + squareSize / 2, collidedBotCircleCenterX!, collidedBotCircleCenterY!);
+    const shakeAnimation = buildShakeAnimationKeyframes(collision_to, "shakeAnimation");
+    const moveToFinalPositionAnimation = buildMovementAnimationKeyframes(botIdentifier, "moveToFinalPositionAnimation", collidedBotCircleCenterX!, collidedBotCircleCenterY!, newCenterX, newCenterY);
 
-  // Apply the animation to the new bot circle
-  newBotCircle.style.animation = `${animationName} 1s linear forwards`; // Adjust the duration as needed
+    appendStyleElement(grid, newBotCircle, collisionAnimation, false, svgNS, "ease-in", "0.5s", "forwards");
+    appendStyleElement(grid, collidedBotCircle, shakeAnimation, true, svgNS);
+    appendStyleElement(grid, newBotCircle, moveToFinalPositionAnimation, true, svgNS);
+
+    if (final_victories > origin_victories) {
+      collidedBotCircle.remove();
+    }
+
+    if (dead) {
+      newBotCircle.remove();
+    }
+
+  } else {
+    const moveBotAnimation = buildMovementAnimationKeyframes(botIdentifier, "moveBotAnimation", x * squareSize + squareSize / 2, y * squareSize + squareSize / 2, newCenterX, newCenterY);
+    appendStyleElement(grid, newBotCircle, moveBotAnimation, false, svgNS);
+  }
 };
 
-const drawShield = (grid: SVGSVGElement, botIdentifier: string, squareSize: number, color: string) => {
+const drawShield = (grid: SVGSVGElement, botIdentifier: string, color: string, final_shield_enabled: boolean) => {
   const svgNS = "http://www.w3.org/2000/svg";
-  // Find the existing bot circle
+
   const existingBotCircle = document.querySelector(`#${botIdentifier}`) as SVGCircleElement;
   if (existingBotCircle) {
-    existingBotCircle.remove(); // Remove the existing bot circle
+    existingBotCircle.remove();
   }
-  // Draw the shield
+
   const newShieldCircle = document.createElementNS(svgNS, "circle");
   newShieldCircle.setAttribute("id", botIdentifier);
   newShieldCircle.setAttribute("cx", existingBotCircle.getAttribute("cx") || "0");
   newShieldCircle.setAttribute("cy", existingBotCircle.getAttribute("cy") || "0");
-  newShieldCircle.setAttribute("r", "10"); // Adjust the radius as needed
-  newShieldCircle.setAttribute("fill", "none"); // Circle color
-  newShieldCircle.setAttribute("stroke", color); // Circle color
-  newShieldCircle.setAttribute("stroke-width", "5"); // Circle color
+  newShieldCircle.setAttribute("r", "10");
+  newShieldCircle.setAttribute("fill", final_shield_enabled ? "none" : color);
+  final_shield_enabled && newShieldCircle.setAttribute("stroke", color);
+  newShieldCircle.setAttribute("stroke-width", "5");
   grid.appendChild(newShieldCircle);
 }
 
-const pulse = (grid: SVGSVGElement, botIdentifier: string, squareSize: number, color: string) => {
+const pulse = (grid: SVGSVGElement, botIdentifier: string, color: string, origin_shield_enabled: boolean) => {
   const svgNS = "http://www.w3.org/2000/svg";
-  // Find the existing bot circle
+
   const existingBotCircle = document.querySelector(`#${botIdentifier}`) as SVGCircleElement;
   if (existingBotCircle) {
-    existingBotCircle.remove(); // Remove the existing bot circle
+    existingBotCircle.remove();
   }
-  // I want to have a pulse animation here
+
   const newRefuelCircle = document.createElementNS(svgNS, "circle");
   newRefuelCircle.setAttribute("id", botIdentifier);
   newRefuelCircle.setAttribute("cx", existingBotCircle.getAttribute("cx") || "0");
   newRefuelCircle.setAttribute("cy", existingBotCircle.getAttribute("cy") || "0");
-  newRefuelCircle.setAttribute("r", "10"); // Adjust the radius as needed
-  newRefuelCircle.setAttribute("fill", color); // Circle color
+  newRefuelCircle.setAttribute("r", "10");
+  newRefuelCircle.setAttribute("fill", origin_shield_enabled ? "none" : color);
   grid.appendChild(newRefuelCircle);
 
-  // Add a pulse animation
-  const firstAnimationName = `refuelAnimationUp_${botIdentifier}`;
-  const firstAnimationKeyframes = `
-    @keyframes ${firstAnimationName} {
-        from {
-            r: 10;
-        }
-        to {
-            r: 15;
-        }
-      }
-  `;
+  const firstAnimation = buildPulseAnimationKeyframes(botIdentifier, "refuelAnimationUp", "10", "15");
+  const secondAnimation = buildPulseAnimationKeyframes(botIdentifier, "refuelAnimationDown", "15", "10");
 
-  const secondAnimationName = `refuelAnimationDown_${botIdentifier}`;
-  const secondAnimationKeyframes = `
-    @keyframes ${secondAnimationName} {
-      from {
-        r: 15;
-      }
-      to {
-        r: 10;
-      }
-    }
-  `;
-  // Create a style element for the animation
-  const styleElement = document.createElementNS(svgNS, "style");
-  styleElement.innerHTML = firstAnimationKeyframes;
-  grid.appendChild(styleElement);
-  // Apply the animation to the new bot circle
-  newRefuelCircle.style.animation = `${firstAnimationName} 1s linear forwards`; // Adjust the duration as needed
-
-  setTimeout(() => {
-    styleElement.innerHTML = secondAnimationKeyframes;
-    grid.appendChild(styleElement);
-    // Apply the animation to the new bot circle
-    newRefuelCircle.style.animation = `${secondAnimationName} 1s linear forwards`; // Adjust the duration as needed
-  }, 1000);
+  appendStyleElement(grid, newRefuelCircle, firstAnimation, false, svgNS, "linear", "0.5s", "forwards");
+  appendStyleElement(grid, newRefuelCircle, secondAnimation, true, svgNS, "linear", "0.5s", "forwards");
 }
 
+const fire = (
+  grid: SVGSVGElement, botIdentifier: string,
+  hit: boolean, hit_to: string | null,
+  target_abs_coordinates: string, squareSize: number, 
+  origin_victories: number, final_victories: number,
+  ) => {
+  const svgNS = "http://www.w3.org/2000/svg";
 
+  const existingBotCircle = document.querySelector(`#${botIdentifier}`) as SVGCircleElement;
+
+  const fireCircle = document.createElementNS(svgNS, "circle");
+  fireCircle.setAttribute("id", botIdentifier+"_bullet");
+  fireCircle.setAttribute("cx", existingBotCircle.getAttribute("cx") || "0");
+  fireCircle.setAttribute("cy", existingBotCircle.getAttribute("cy") || "0");
+  fireCircle.setAttribute("r", "5");
+  fireCircle.setAttribute("fill", "black");
+  grid.appendChild(fireCircle);
+
+  const targets = target_abs_coordinates.match(/\d+/g);
+  const parsedTargets = targets?.map(Number);
+
+  const fireAnimation = buildMovementAnimationKeyframes(
+    botIdentifier, "fireAnimation", existingBotCircle.getAttribute("cx") || "0", 
+    existingBotCircle.getAttribute("cy") || "0", parsedTargets![0] * squareSize + squareSize / 2, 
+    parsedTargets![1] * squareSize + squareSize / 2
+  );
+
+  appendStyleElement(grid, fireCircle, fireAnimation, false, svgNS, "linear", "0.5s", "forwards");
+
+  if (hit) {
+    const target = (document.querySelector(`#${hit_to}`) as SVGCircleElement);
+    const shakeAnimation = buildShakeAnimationKeyframes(hit_to!, "shakeAnimation");
+    appendStyleElement(grid, target, shakeAnimation, true, svgNS);
+
+    if (final_victories > origin_victories) {
+      target.remove();
+    }
+  }
+  
+  setTimeout(() => {
+    fireCircle.remove();
+  }, 500);
+}
 
 export const checkIfCirclesHaveBeenDrawn = (grid: SVGSVGElement) => {
   const circles = grid.querySelectorAll("circle");
   return circles.length > 0;
 };
 
-const getCurrentTurn = (gameData: TurnData[], turnNumber: number) => {
-  return gameData.filter((turn) => turn.turn_number === turnNumber);
-};
-
-export const getAmountOfTurns = (gameData: TurnData[]) => {
-  const turns = gameData.map((turn) => turn.turn_number);
-  return Math.max(...turns);
+const getCurrentTurn = (turnData: TurnData[], turnNumber: number) => {
+  return turnData.filter((turn) => turn.turn_number === turnNumber);
 };
 
 export const drawTurn = (
-  grid: SVGSVGElement, gameData: TurnData[], 
-  turnNumber: number, squareSize: number, botsData: any[], 
+  grid: SVGSVGElement, gameData: GameData, 
+  turnNumber: number, squareSize: number, botsData: BotData[], 
   setBotTurnInfo: Dispatch<SetStateAction<BotTurnInfo>>, 
   setTurnLogs: Dispatch<SetStateAction<TurnLog[]>>
   ) => {
-  const currentTurn = getCurrentTurn(gameData, turnNumber);
+  const currentTurn = getCurrentTurn(gameData.turns, turnNumber);
   for (let i = 0; i < currentTurn.length; i++) {
     const turn = currentTurn[i];
     const bot = botsData.find((bot) => bot.id === turn.bot_identifier);
     if (bot) {
       const color = bot.color;
-      const botIdentifier = turn.bot_identifier;
-      const x = turn.origin_position_x;
-      const y = turn.origin_position_y;
-      const newX = turn.final_position_x;
-      const newY = turn.final_position_y;
+      const { 
+        bot_identifier: botIdentifier, origin_position_x: x, 
+        origin_position_y: y, final_position_x: newX, 
+        final_position_y: newY, origin_shield_enabled, 
+        final_shield_enabled, collision, collision_to,
+        hit, hit_to, target_abs_coordinates, origin_victories,
+        final_victories, dead, action, final_fuel, final_health,
+        final_bullets
+      } = turn;
+
       setTimeout(() => {
-        switch (turn.action) {
+        switch (action) {
           case 'M':
-            moveBot(grid, botIdentifier, x, y, newX, newY, squareSize, color);
+            moveBot(
+              grid, botIdentifier, x, y, newX, newY, 
+              squareSize, color, collision, collision_to, 
+              origin_shield_enabled, origin_victories,
+              final_victories, dead
+            );
+            let moveMessage : string;
+            if (collision) {
+              const target = botsData.find((bot) => bot.id === turn.collision_to);
+              moveMessage = "Moved to " + newX + ", " + newY + " and collided with " + target?.name;
+              if (dead && final_victories > origin_victories) {
+                moveMessage += " and both died";
+              }
+              if (dead && final_victories === origin_victories) {
+                moveMessage += " and died";
+              }
+              if (!dead && final_victories > origin_victories) {
+                moveMessage += `. ${target?.name} died`;
+              }
+            } else {
+              moveMessage = "Moved to " + newX + ", " + newY;
+            }
             setBotTurnInfo((prevState) => {
               return {
                 ...prevState,
-                [botIdentifier]: "Moved to " + newX + ", " + newY
+                [botIdentifier]: {
+                  message: moveMessage,
+                  health: final_health,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
               }
             });
             setTurnLogs((prevState) => {
@@ -351,18 +464,34 @@ export const drawTurn = (
                 turnNumber,
                 botData: {
                   id: botIdentifier,
+                  name: bot.name,
                   color,
-                  turnInfo: "Moved to " + newX + ", " + newY
+                  turnInfo: moveMessage,
+                  avatar: bot.avatar,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
                 }
               }]
             });
           break;
           case 'S':
-            drawShield(grid, botIdentifier, squareSize, color);
+            drawShield(grid, botIdentifier, color, final_shield_enabled);
+            let shieldMessage: string;
+            if (final_shield_enabled) {
+              shieldMessage = "Shielded";
+            } else {
+              shieldMessage = "Unshielded";
+            }
             setBotTurnInfo((prevState) => {
               return {
                 ...prevState,
-                [botIdentifier]: "Shielded"
+                [botIdentifier]: {
+                  message: shieldMessage,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
               }
             });
             setTurnLogs((prevState) => {
@@ -370,18 +499,28 @@ export const drawTurn = (
                 turnNumber,
                 botData: {
                   id: botIdentifier,
+                  name: bot.name,
                   color,
-                  turnInfo: "Shielded"
+                  turnInfo: shieldMessage,
+                  avatar: bot.avatar,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
                 }
               }]
             });
           break;
           case 'R':
-            pulse(grid, botIdentifier, squareSize, color);
+            pulse(grid, botIdentifier, color, origin_shield_enabled);
             setBotTurnInfo((prevState) => {
               return {
                 ...prevState,
-                [botIdentifier]: "Refueled"
+                [botIdentifier]: {
+                  message: "Refueled",
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
               }
             });
             setTurnLogs((prevState) => {
@@ -389,18 +528,28 @@ export const drawTurn = (
                 turnNumber,
                 botData: {
                   id: botIdentifier,
+                  name: bot.name,
                   color,
-                  turnInfo: "Refueled"
+                  turnInfo: "Refueled",
+                  avatar: bot.avatar,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
                 }
               }]
             });
           break;
           case 'L':
-            pulse(grid, botIdentifier, squareSize, color);
+            pulse(grid, botIdentifier, color, origin_shield_enabled);
             setBotTurnInfo((prevState) => {
               return {
                 ...prevState,
-                [botIdentifier]: "Reloaded"
+                [botIdentifier]: {
+                  message: "Reloaded",
+                  health: final_health,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
               }
             });
             setTurnLogs((prevState) => {
@@ -408,21 +557,67 @@ export const drawTurn = (
                 turnNumber,
                 botData: {
                   id: botIdentifier,
+                  name: bot.name,
                   color,
-                  turnInfo: "Reloaded"
+                  turnInfo: "Reloaded",
+                  avatar: bot.avatar,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
                 }
               }]
             });
           break;
           case 'F':
-            // TODO: Implement fire
-          break;
+            fire(grid, botIdentifier, hit, hit_to, target_abs_coordinates, squareSize, origin_victories, final_victories);
+            let fireMessage: string;
+            if (hit) {
+              const target = botsData.find((bot) => bot.id === turn.hit_to);
+              fireMessage = "Fired at " + target?.name;
+              if (final_victories > origin_victories) {
+                fireMessage += " and killed them";
+              }
+            } else {
+              fireMessage = "Fired";
+            }
+            setBotTurnInfo((prevState) => {
+              return {
+                ...prevState,
+                [botIdentifier]: {
+                  message: fireMessage,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
+              }
+            });
+            setTurnLogs((prevState) => {
+              return [...prevState, {
+                turnNumber,
+                botData: {
+                  id: botIdentifier,
+                  name: bot.name,
+                  color,
+                  turnInfo: fireMessage,
+                  avatar: bot.avatar,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
+              }]
+            });
+            break;
           case 'T':
-            pulse(grid, botIdentifier, squareSize, color);
+            pulse(grid, botIdentifier, color, origin_shield_enabled);
               setBotTurnInfo((prevState) => {
                 return {
                   ...prevState,
-                  [botIdentifier]: "Repaired"
+                  [botIdentifier]: {
+                    message: "Repaired",
+                    health: final_health > 0 ? final_health : 0,
+                    fuel: final_fuel > 0 ? final_fuel : 0,
+                    bullets: final_bullets > 0 ? final_bullets : 0,
+                  }
                 }
               });
               setTurnLogs((prevState) => {
@@ -430,8 +625,13 @@ export const drawTurn = (
                   turnNumber,
                   botData: {
                     id: botIdentifier,
+                    name: bot.name,
                     color,
-                    turnInfo: "Repaired"
+                    turnInfo: "Repaired",
+                    avatar: bot.avatar,
+                    health: final_health > 0 ? final_health : 0,
+                    fuel: final_fuel > 0 ? final_fuel : 0,
+                    bullets: final_bullets > 0 ? final_bullets : 0,
                   }
                 }]
               });
@@ -440,7 +640,12 @@ export const drawTurn = (
             setBotTurnInfo((prevState) => {
               return {
                 ...prevState,
-                [botIdentifier]: "Skipped"
+                [botIdentifier]: {
+                  message: "Skipped",
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
+                }
               }
             });
             setTurnLogs((prevState) => {
@@ -448,8 +653,13 @@ export const drawTurn = (
                 turnNumber,
                 botData: {
                   id: botIdentifier,
+                  name: bot.name,
                   color,
-                  turnInfo: "Skipped"
+                  turnInfo: "Skipped",
+                  avatar: bot.avatar,
+                  health: final_health > 0 ? final_health : 0,
+                  fuel: final_fuel > 0 ? final_fuel : 0,
+                  bullets: final_bullets > 0 ? final_bullets : 0,
                 }
               }]
             });

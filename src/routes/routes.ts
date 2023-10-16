@@ -4,6 +4,7 @@ export enum RouteName {
   Home = 'home',
   About = 'about',
   NotFound = 'notFound',
+  Replay = 'replay',
 }
 
 export type Route = {
@@ -50,6 +51,11 @@ const ROUTES = [
   {
     name: RouteName.Home,
     path: '/',
+    exact: true,
+  },
+  {
+    name: RouteName.Replay,
+    path: '/replay',
     exact: true,
   },
   {
